@@ -108,7 +108,7 @@ where
         // configure timer to operate at 10 KHz.
         // f_timer = 13.56 MHz / (2 + TPrescaler + 2)
         mfrc522.write(Register::Demod, 0x4d | (1 << 4))?;
-        mfrc522.write(Register::TMode, 0x0 | (1 << 7) | 0b10)?;
+        mfrc522.write(Register::TMode, (1 << 7) | 0b10)?;
         mfrc522.write(Register::TPrescaler, 165)?;
 
         // configure timer for a 5 ms timeout
@@ -129,7 +129,7 @@ where
     }
 
     /// Sends a REQuest type A to nearby PICCs
-    pub fn reqa<'b>(&mut self) -> Result<AtqA, Error<E, OPE>> {
+    pub fn reqa(&mut self) -> Result<AtqA, Error<E, OPE>> {
         // NOTE REQA is a short frame (7 bits)
         self.transceive(&[picc::REQA], 7)
             .map(|bytes| AtqA { bytes })
@@ -157,7 +157,7 @@ where
             return Err(Error::Bcc);
         }
 
-        let mut tx: [u8; 9] = unsafe { mem::uninitialized() };
+        let mut tx: [u8; 9] = unsafe { mem::MaybeUninit::zeroed().assume_init() };
         tx[0] = picc::SEL_CL1;
         tx[1] = 0x70;
         tx[2..7].copy_from_slice(&rx);
@@ -170,7 +170,7 @@ where
 
         let crc2 = self.calculate_crc(&rx2[..1])?;
 
-        if &rx2[1..] != &crc2 {
+        if rx2[1..] != crc2 {
             return Err(Error::Crc);
         }
 
@@ -312,7 +312,8 @@ where
         // }
 
         // grab RX data
-        let mut rx_buffer: GenericArray<u8, RX> = unsafe { mem::uninitialized() };
+        let mut rx_buffer: GenericArray<u8, RX> =
+            unsafe { mem::MaybeUninit::zeroed().assume_init() };
 
         {
             let rx_buffer: &mut [u8] = &mut rx_buffer;
