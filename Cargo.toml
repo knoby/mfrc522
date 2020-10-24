@@ -10,5 +10,5 @@ repository = "https://github.com/japaric/mfrc522"
 version = "0.2.0"
 
 [dependencies]
-embedded-hal = "0.2.0"
+embedded-hal = "0.2.4"
 generic-array = "0.14.4"
