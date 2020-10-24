@@ -7,7 +7,7 @@ keywords = ["embedded-hal", "rfid"]
 license = "MIT OR Apache-2.0"
 name = "mfrc522"
 repository = "https://github.com/japaric/mfrc522"
-version = "0.2.0"
+version = "0.2.1"
 
 [dependencies]
 embedded-hal = "0.2.4"
