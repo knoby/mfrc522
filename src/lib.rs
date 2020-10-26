@@ -135,6 +135,13 @@ where
             .map(|bytes| AtqA { bytes })
     }
 
+    /// Sends a WakeUP type A to nearby PICCs
+    pub fn wupa(&mut self) -> Result<AtqA, Error<E, OPE>> {
+        // NOTE WUPA is a short frame (7 bits)
+        self.transceive(&[picc::WUPA], 7)
+            .map(|bytes| AtqA { bytes })
+    }
+
     /// Selects an idle PICC
     ///
     /// NOTE currently this only supports single size UIDs
