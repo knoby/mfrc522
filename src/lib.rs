@@ -513,7 +513,7 @@ pub struct AtqA {
 }
 
 /// Single size UID
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct Uid {
     bytes: [u8; 4],
     compliant: bool,
