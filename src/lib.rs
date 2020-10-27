@@ -153,11 +153,14 @@ where
         tx_buffer[2..4].copy_from_slice(&crc);
 
         let rx = self.transceive::<U0>(&tx_buffer, 0);
-
+        // The standard says:
+        //		If the PICC responds with any modulation during a period of 1 ms after the end of the frame containing the
+        //		HLTA command, this response shall be interpreted as 'not acknowledge'.
+        // -> Only timeout is ok
         match rx {
             Ok(_) => Err(Error::Protocol), // In this case a succes is not a success for the HLTA Command
-            Err(Error::Timeout) => Ok(()),
-            Err(err) => Err(err),
+            Err(Error::Timeout) => Ok(()), // This is fine
+            Err(err) => Err(err),          // Return all other errors
         }
     }
 
