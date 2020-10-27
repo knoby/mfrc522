@@ -142,6 +142,25 @@ where
             .map(|bytes| AtqA { bytes })
     }
 
+    /// Sends a HaLT type A to nearby PICCs
+    pub fn hlta(&mut self) -> Result<(), Error<E, OPE>> {
+        // HLTA is a standard frame
+        let mut tx_buffer = [picc::HLTA[0], picc::HLTA[1], 0x00, 0x00];
+
+        // Calculate the crc
+        // TODO: Check if it constant and skip calculation
+        let crc = self.calculate_crc(&tx_buffer[0..2])?;
+        tx_buffer[2..4].copy_from_slice(&crc);
+
+        let rx = self.transceive::<U0>(&tx_buffer, 0);
+
+        match rx {
+            Ok(_) => Err(Error::Protocol), // In this case a succes is not a success for the HLTA Command
+            Err(Error::Timeout) => Ok(()),
+            Err(err) => Err(err),
+        }
+    }
+
     /// Selects an idle PICC
     ///
     /// NOTE currently this only supports single size UIDs
