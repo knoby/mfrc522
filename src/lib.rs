@@ -297,6 +297,7 @@ where
         self.write(Register::Status2Reg, status2reg)
     }
 
+    /// Read a datablock in an encrypted session
     pub fn mfread(&mut self, add: u8) -> Result<[u8; 16], Error<E, OPE>> {
         // Build the tx buffer
         let mut buffer = [0; 4];
@@ -319,6 +320,46 @@ where
             data_block.clone_from_slice(&rx[..16]);
             Ok(data_block)
         }
+    }
+
+    // Write a datablock in an encrypted session
+    pub fn mfwrite(&mut self, add: u8, data: &[u8; 16]) -> Result<(), Error<E, OPE>> {
+        // Build the tx buffer
+        let mut buffer = [0; 4];
+        buffer[0] = mifare::MifareCommand::Write.value();
+        buffer[1] = add;
+
+        // Calculate CRC
+        let crc = self.calculate_crc(&buffer[0..2])?;
+        buffer[2..4].copy_from_slice(&crc[..]);
+
+        // Send to PICC
+        let rx: [u8; 1] = self.transceive(&buffer, 0)?.into();
+
+        // Check for ACK
+        if rx[0] != mifare::ACK {
+            return Err(Error::Protocol);
+        }
+
+        // Build the tx buffer
+        let mut buffer = [0; 18];
+        for (i, &byte) in data.iter().enumerate() {
+            buffer[i] = byte;
+        }
+
+        // Calculate CRC
+        let crc = self.calculate_crc(&buffer[0..16])?;
+        buffer[16..18].copy_from_slice(&crc[..]);
+
+        // Send to PICC
+        let rx: [u8; 1] = self.transceive(&buffer, 0)?.into();
+
+        // Check for ACK
+        if rx[0] != mifare::ACK {
+            return Err(Error::Protocol);
+        }
+
+        Ok(())
     }
 
     /// Returns the version of the MFRC522

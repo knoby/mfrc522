@@ -1,3 +1,5 @@
+pub const ACK: u8 = 0x0A;
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MifareCommand {
     AuthWithKeyA = 0x60,
