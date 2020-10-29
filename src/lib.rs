@@ -22,7 +22,7 @@
 //! [2]: https://www.nxp.com/docs/en/data-sheet/MFRC522.pdf
 
 #![allow(dead_code)]
-#![deny(missing_docs)]
+//#![deny(missing_docs)]
 #![deny(warnings)]
 #![no_std]
 
@@ -37,6 +37,7 @@ use hal::blocking::spi;
 use hal::digital::v2::OutputPin;
 use hal::spi::{Mode, Phase, Polarity};
 
+pub mod mifare;
 mod picc;
 
 /// Errors
@@ -218,6 +219,90 @@ where
             compliant,
         })
     }
+
+    /// Authenticated for Mifare Command
+    pub fn mfauthent(
+        &mut self,
+        add: u8,
+        uid: &Uid,
+        key: &mifare::Key,
+    ) -> Result<(), Error<E, OPE>> {
+        // Write data to the fifo
+        let mut fifo = [0u8; 12];
+        let byte_key;
+        match key {
+            mifare::Key::KeyA(k) => {
+                byte_key = k;
+                fifo[0] = mifare::MifareCommand::AuthWithKeyA.value();
+            }
+            mifare::Key::KeyB(k) => {
+                byte_key = k;
+                fifo[0] = mifare::MifareCommand::AuthWithKeyB.value();
+            }
+        }
+        fifo[1] = add;
+        for (i, &byte) in byte_key.iter().enumerate() {
+            // 6 bytes
+            fifo[2 + i] = byte;
+        }
+        for (i, &byte) in uid.bytes().iter().enumerate() {
+            // 4 bytes
+            fifo[8 + i] = byte;
+        }
+
+        // stop any ongoing command
+        self.command(Command::Idle)?;
+
+        // Clear interrupt register
+        self.write(Register::ComIrq, 0x7f)?;
+
+        // flush FIFO buffer
+        self.flush_fifo_buffer()?;
+
+        // write data to transmit to the FIFO buffer
+        self.write_many(Register::FifoData, &fifo)?;
+
+        // Execute Authentification
+        self.command(Command::MFAuthent)?;
+
+        // wait for authentification complete
+        let mut irq;
+        loop {
+            irq = self.read(Register::ComIrq)?;
+
+            if irq & (ERR_IRQ | IDLE_IRQ) != 0 {
+                break;
+            } else if irq & TIMER_IRQ != 0 {
+                return Err(Error::Timeout);
+            }
+        }
+
+        // TODO: Check if authentication bit is 1
+
+        Ok(())
+    }
+
+    /// Stop Crypto Session with writing 0 to bit 3 in Status2Register
+    pub fn mfstopcrypto(&mut self) -> Result<(), Error<E, OPE>> {
+        // Send device a HLTA
+        self.hlta()?;
+
+        // Read current register state
+        let mut status2reg = self.read(Register::Status2Reg)?;
+
+        // Reset Bit 3
+        status2reg &= !0x08;
+
+        // Write Register back
+        self.write(Register::Status2Reg, status2reg)
+    }
+
+    /*pub fn mfread(&mut self, add: u8, value: u8) -> Result<u8, Error<E, OPE>> {
+
+
+
+        Ok(0)
+    }*/
 
     /// Returns the version of the MFRC522
     pub fn version(&mut self) -> Result<u8, Error<E, OPE>> {
@@ -491,6 +576,7 @@ enum Register {
     TxControl = 0x14,
     TxMode = 0x12,
     Version = 0x37,
+    Status2Reg = 0x08,
 }
 
 const R: u8 = 1 << 7;
