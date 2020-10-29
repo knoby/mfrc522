@@ -297,12 +297,29 @@ where
         self.write(Register::Status2Reg, status2reg)
     }
 
-    /*pub fn mfread(&mut self, add: u8, value: u8) -> Result<u8, Error<E, OPE>> {
+    pub fn mfread(&mut self, add: u8) -> Result<[u8; 16], Error<E, OPE>> {
+        // Build the tx buffer
+        let mut buffer = [0; 4];
+        buffer[0] = mifare::MifareCommand::Read.value();
+        buffer[1] = add;
 
+        // Calculate CRC
+        let crc = self.calculate_crc(&buffer[0..2])?;
+        buffer[2..4].copy_from_slice(&crc[..]);
 
+        // Send to PICC
+        let rx: [u8; 18] = self.transceive(&buffer, 0)?.into();
 
-        Ok(0)
-    }*/
+        // Check crc
+        let crc = self.calculate_crc(&rx[..16])?;
+        if crc != rx[16..] {
+            Err(Error::Crc)
+        } else {
+            let mut data_block = [0; 16];
+            data_block.clone_from_slice(&rx[..16]);
+            Ok(data_block)
+        }
+    }
 
     /// Returns the version of the MFRC522
     pub fn version(&mut self) -> Result<u8, Error<E, OPE>> {
